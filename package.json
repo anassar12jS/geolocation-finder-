@@ -1,5 +1,5 @@
 {
-  "name": "atlas-guessr-morocco",
+  "name": "anas-guessr-morocco",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^0.1.2",
+    "@google/genai": "*",
     "lucide-react": "^0.344.0",
     "pigeon-maps": "^0.21.3",
     "react": "^18.2.0",

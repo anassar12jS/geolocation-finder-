@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LocationAnalysis } from '../types';
-import { MapPin, CheckCircle, AlertTriangle, Mountain, Trees, Hexagon, Home, Navigation, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MapPin, Trees, Mountain, Navigation, Home, Hexagon, ChevronLeft, ChevronRight, Globe, ExternalLink } from 'lucide-react';
 import { Map, Marker } from 'pigeon-maps';
 
 interface AnalysisResultProps {
@@ -96,6 +96,31 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysis, imageUrls }) 
             Open in Google Maps
           </a>
         </div>
+
+        {/* Search Sources (Grounding) */}
+        {analysis.groundingUrls && analysis.groundingUrls.length > 0 && (
+          <div className="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+            <h4 className="text-xs font-bold uppercase text-gray-400 mb-3 flex items-center gap-2">
+              <Globe className="w-3 h-3" />
+              Verified with Google Search
+            </h4>
+            <div className="flex flex-col gap-2">
+              {analysis.groundingUrls.slice(0, 3).map((source, idx) => (
+                <a 
+                  key={idx} 
+                  href={source.uri} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-morocco-blue hover:underline flex items-center gap-1 truncate"
+                >
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                  {source.title}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Right Column: Analysis Details */}

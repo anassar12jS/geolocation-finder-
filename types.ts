@@ -11,6 +11,7 @@ export interface LocationAnalysis {
     category: 'Vegetation' | 'Soil' | 'Architecture' | 'Infrastructure' | 'Geography';
     description: string;
   }[];
+  groundingUrls?: { title: string; uri: string }[];
 }
 
 export interface HistoryItem {

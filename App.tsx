@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { analyzeImageLocation } from './services/geminiService';
 import { LocationAnalysis } from './types';
 import AnalysisResult from './components/AnalysisResult';
-import { Upload, MapPin, Loader2, Compass, RefreshCw, Images } from 'lucide-react';
+import { Upload, MapPin, Loader2, Compass, RefreshCw, Images, Globe } from 'lucide-react';
 
 const EXAMPLE_IMAGES = [
   "https://picsum.photos/id/1015/800/600", // Valley/River
@@ -108,7 +108,7 @@ export default function App() {
               Where in <span className="text-transparent bg-clip-text bg-gradient-to-r from-morocco-red to-morocco-ochre">Morocco</span> is this?
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Upload photos or street view screenshots. Our AI Champion analyzes soil, vegetation, and architecture to pinpoint your location.
+              Upload photos or street view screenshots. Our AI Champion utilizes deep search and analysis to pinpoint your location.
             </p>
 
             {/* Upload Box */}
@@ -124,7 +124,7 @@ export default function App() {
                     <Images className="w-8 h-8 text-morocco-blue" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-800">Click to upload images</h3>
-                  <p className="text-sm text-gray-400">Upload one or multiple photos for better accuracy.</p>
+                  <p className="text-sm text-gray-400">Upload multiple angles for "Pro" level triangulation.</p>
                   <p className="text-xs text-gray-400 mt-2">Supported: JPG, PNG, WEBP</p>
                 </div>
                 
@@ -160,9 +160,9 @@ export default function App() {
             <Loader2 className="w-16 h-16 text-morocco-ochre animate-spin relative z-10" />
           </div>
           <div>
-            <h3 className="text-2xl font-serif font-bold text-gray-800 mb-2">Consulting the Map...</h3>
+            <h3 className="text-2xl font-serif font-bold text-gray-800 mb-2">Analyzing Geography...</h3>
             <p className="text-gray-500 max-w-md mx-auto">
-              Analyzing {images.length} image{images.length > 1 ? 's' : ''}. Checking soil composition, cross-referencing vegetation patterns, and calculating coordinates.
+              Scanning soil composition, cross-referencing vegetation with satellite data, and verifying landmarks via Google Search.
             </p>
             {images.length > 0 && (
               <div className="flex justify-center gap-2 mt-6">

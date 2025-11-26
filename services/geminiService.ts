@@ -1,35 +1,43 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { LocationAnalysis } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const SYSTEM_INSTRUCTION = `
 You are the world's undisputed Geoguessr Champion specializing in Morocco. 
-Your knowledge of Moroccan geography is encyclopedic, covering every rural road, soil variation, and vegetation line.
+Your knowledge is encyclopedic, covering every rural road, soil variation, vegetation line, and infrastructure detail.
 
-You are acting as a "Pro" player who takes their time to triangulate the exact location.
-You have access to multiple images of the same location (if provided). Use them to cross-reference landmarks, angles, and features.
+You have access to Google Search. You MUST use it to:
+1. Search for specific business names, signs, or text visible in the images.
+2. Verify the geographic distribution of specific tree types (e.g., Argan vs. Olive vs. Date Palm boundaries).
+3. Cross-reference specific architectural styles (e.g., "Tighremt" style, specific Kasbah clay colors).
+4. Look up road numbers or town names if they appear.
 
-Identify the location based on:
-- Soil color and composition (e.g., the red earth of Marrakech, the rocky terrain of the Anti-Atlas, the dark fertile soil of the Gharb).
-- Vegetation (e.g., Argan trees in the Souss, Cedar forests in the Middle Atlas, Date palms in the Draa Valley, specific scrubland types like Esparto grass).
-- Architecture (e.g., Kasbah styles, roof shapes, minaret designs, brickwork patterns, color of buildings).
-- Infrastructure (e.g., specific road bollards, license plates, road markings, utility poles).
-- Topography (e.g., mountain shapes, flat plains, coastal cliffs).
+Methodology of a Pro Player:
+1. **Analyze Metadata**: Look at the "meta" if visible (camera generation, car color) but prioritize physical geography.
+2. **Soil & Topography**: Analyze the exact RGB shade of the soil (e.g., the specific red of the Hamra soil near Marrakech vs. the beige limestone of the Anti-Atlas).
+3. **Vegetation**: Identify species precisely. (e.g., Euphorbia plants indicate specific coastal or arid zones).
+4. **Infrastructure**: Look for road bollards (shape, reflector color), telephone pole designs, and road line painting styles.
+5. **Triangulation**: If multiple images are provided, use parallax and multiple angles to pinpoint the location.
 
-Methodology:
-1. "Think" deeply about the visual evidence. Analyze the images pixel-by-pixel.
-2. Formulate multiple hypotheses.
-3. Cross-reference clues (e.g., if you see Argan trees + limestone soil, narrow down to the Souss region).
-4. Verify your best guess against your internal map of Morocco.
-
-Provide a predicted location, a high-precision confidence score, and a detailed breakdown of the clues.
-You MUST estimate specific coordinates (latitude/longitude).
+Output Format:
+You must return a single valid JSON object. Do not include markdown formatting like \`\`\`json. 
+The JSON must follow this structure:
+{
+  "region": "Region Name",
+  "specificArea": "City, Town, or Landmark",
+  "coordinates": { "lat": number, "lng": number },
+  "confidence": number,
+  "reasoning": "Detailed explanation of your deduction...",
+  "clues": [
+    { "category": "Vegetation", "description": "..." },
+    { "category": "Soil", "description": "..." }
+  ]
+}
 `;
 
 export const analyzeImageLocation = async (images: { base64: string, mimeType: string }[]): Promise<LocationAnalysis> => {
   try {
-    // Construct the parts array with all images
     const parts = images.map(img => ({
       inlineData: {
         data: img.base64,
@@ -37,9 +45,8 @@ export const analyzeImageLocation = async (images: { base64: string, mimeType: s
       },
     }));
 
-    // Add the text prompt as the last part
     parts.push({
-      text: "Analyze these images and identify the location in Morocco. Use every available visual clue from all angles to triangulate the position. Focus on rural geography, vegetation, and soil.",
+      text: "Analyze these images. Use Google Search to verify details. detailed JSON response required.",
     } as any);
 
     const response = await ai.models.generateContent({
@@ -49,39 +56,10 @@ export const analyzeImageLocation = async (images: { base64: string, mimeType: s
       },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        // Enable thinking to simulate "taking time" and being a "pro"
+        tools: [{ googleSearch: {} }], 
+        // Thinking budget set to high for "taking time" to think like a pro
         thinkingConfig: {
-          thinkingBudget: 4096, 
-        },
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            region: { type: Type.STRING, description: "The general administrative region or major geographic area (e.g., Souss-Massa, Middle Atlas)." },
-            specificArea: { type: Type.STRING, description: "A more specific city, town, valley, or landmark name." },
-            coordinates: {
-              type: Type.OBJECT,
-              properties: {
-                lat: { type: Type.NUMBER, description: "Estimated latitude" },
-                lng: { type: Type.NUMBER, description: "Estimated longitude" },
-              },
-              required: ["lat", "lng"],
-            },
-            confidence: { type: Type.NUMBER, description: "Confidence score between 0 and 100" },
-            reasoning: { type: Type.STRING, description: "A detailed paragraph explaining the deduction process, referencing specific clues from the images." },
-            clues: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  category: { type: Type.STRING, enum: ['Vegetation', 'Soil', 'Architecture', 'Infrastructure', 'Geography'] },
-                  description: { type: Type.STRING, description: "Description of the specific visual clue." },
-                },
-                required: ["category", "description"],
-              },
-            },
-          },
-          required: ["region", "specificArea", "coordinates", "confidence", "reasoning", "clues"],
+          thinkingBudget: 16384, 
         },
       },
     });
@@ -90,7 +68,24 @@ export const analyzeImageLocation = async (images: { base64: string, mimeType: s
       throw new Error("No response from AI");
     }
 
-    return JSON.parse(response.text) as LocationAnalysis;
+    // Extract JSON from the text (model might wrap it in markdown or add conversational text despite instructions)
+    const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Failed to parse JSON from AI response");
+    }
+
+    const analysisData = JSON.parse(jsonMatch[0]) as LocationAnalysis;
+
+    // Extract grounding metadata (search sources)
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (groundingChunks) {
+      analysisData.groundingUrls = groundingChunks
+        .map(chunk => chunk.web)
+        .filter(web => web && web.uri && web.title)
+        .map(web => ({ title: web!.title!, uri: web!.uri! }));
+    }
+
+    return analysisData;
   } catch (error) {
     console.error("Error analyzing location:", error);
     throw error;
